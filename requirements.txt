@@ -1,4 +1,3 @@
 streamlit
-sleep
-genai
-load_dotenv
+google-genai
+python-dotenv
