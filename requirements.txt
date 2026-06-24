@@ -1,0 +1,4 @@
+streamlit
+sleep
+genai
+load_dotenv
