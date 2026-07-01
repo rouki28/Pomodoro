@@ -4,14 +4,10 @@ import os
 from google import genai
 from dotenv import load_dotenv
 
-#placeholder = st.empty()
-
 class PomodoroApp:
     """アプリの画面表示と状態遷移を管理するクラス"""
 
     def __init__(self):
-        # 初期化メソッド（コンストラクタ）。アプリ起動時に状態をセットアップします。
-        #self.time = []
         self.setup_session_state()
 
     def setup_session_state(self):
@@ -22,7 +18,6 @@ class PomodoroApp:
         if "cnt" not in st.session_state:
             st.session_state["cnt"] = 0
         
-        # ここで設定した値が、keyを指定したウィジェットの「初期値」として自動的に反映されます
         if "goal" not in st.session_state:
             st.session_state["goal"] = "未設定"
         if "worktime" not in st.session_state:
@@ -31,16 +26,21 @@ class PomodoroApp:
             st.session_state["sets"] = 4
         if "downtime" not in st.session_state:
             st.session_state["downtime"] = 5
+            
+        # 【追加】タイマー開始前に画面を綺麗にするためのフラグ
+        if "timer_ready" not in st.session_state:
+            st.session_state["timer_ready"] = False
 
     def switch_page(self, page_id):
-        # ページを切り替えるメソッド
+        # ページを切り替えるメソッド（ここでst.rerun()をまとめることでコードがスッキリします）
         st.session_state["page_control"] = page_id
+        st.session_state["timer_ready"] = False # ページ移動時は必ずフラグをリセット
+        st.rerun()
 
     def render_main_page(self):
         """1ページ目（設定画面）の表示"""
         st.title("Pomodoro Timer")
         
-        # 数値入力ウィジェットの矢印を非表示にするCSS
         st.markdown(
             """
             <style>
@@ -58,35 +58,27 @@ class PomodoroApp:
         )
 
         st.sidebar.title("１ページ目")
-        #st.sidebar.button("2ページ目へ", on_click=self.switch_page, args=(1,))
-        if st.sidebar.button("2ページ目"):   #修正点
-            self.switch_page(1)
-            st.rerun()
         
-        # ----------------------------------------------------
-        # 【変更】st.form を使って入力項目をグループ化
-        # ----------------------------------------------------
+        # switch_page の中に st.rerun() を入れたので、ここはシンプルに書けます
+        if st.sidebar.button("2ページ目へ"):   
+            self.switch_page(1)
+        
         with st.form("setting_form"):
             st.header('タイマー設定')
-            
-            # 入力ウィジェット（ここではまだsession_stateには保存しない）
             goal_input = st.text_input("今回の目標", value=st.session_state["goal"])
             worktime_input = st.number_input("作業時間 (分)", min_value=1, value=st.session_state["worktime"])
             downtime_input = st.number_input("休憩時間 (分)", min_value=1, value=st.session_state["downtime"])
             sets_input = st.number_input("セット数", min_value=1, value=st.session_state["sets"])
             
-            # 決定ボタン（これが押されたときだけ True になる）
             submitted = st.form_submit_button("設定を決定")
             
             if submitted:
-                # 決定ボタンが押されたタイミングで、入力された値をsession_stateに保存
                 st.session_state["goal"] = goal_input
                 st.session_state["worktime"] = worktime_input
                 st.session_state["downtime"] = downtime_input
                 st.session_state["sets"] = sets_input
                 st.success("設定を更新しました！")
 
-        # 確認用：現在の設定値を表示（フォームの外に出しておく）
         st.markdown("### 現在の設定内容")
         st.markdown(f"**目標:** {st.session_state['goal']}")
         st.markdown(f"**作業時間:** {st.session_state['worktime']} 分")
@@ -96,34 +88,23 @@ class PomodoroApp:
     def render_second_page(self):
         """2ページ目の表示"""
         st.sidebar.title("２ページ目")
-        st.markdown("### ２ページ目（タイマー実行画面など）")
+        st.markdown("### ２ページ目（チャット画面）")
         
-        #st.sidebar.button("3ページ目へ", on_click=self.switch_page, args=(2,))
-        if st.sidebar.button("3ページ目"):    #修正点
+        if st.sidebar.button("3ページ目へ"): 
             self.switch_page(2)
-            st.rerun()
-            return
 
-        # args=(0,) を渡して1ページ目に戻る
-        #st.sidebar.button("1ページ前に戻る", on_click=self.switch_page, args=(0,))
-        if st.sidebar.button("1ページ前に戻る"):    #変更点
+        if st.sidebar.button("1ページ前に戻る"):
             self.switch_page(0)
-            st.rerun()
-            return
 
-        #st.write(self.time)
         load_dotenv()
-        API_KEY = st.secrets["GOOGLE_API_KEY"]
-        #genai.configure(api_key=API_KEY)
+        API_KEY = st.secrets.get("GOOGLE_API_KEY", os.getenv("GOOGLE_API_KEY"))
+        
         if not API_KEY:
-            st.error(
-                "Google APIキーが設定されていません。"
-                "環境変数 GOOGLE_API_KEY を設定してください。"
-            )
+            st.error("Google APIキーが設定されていません。環境変数 GOOGLE_API_KEY を設定してください。")
             st.stop()
+            
         client = genai.Client(api_key=API_KEY)
         MODEL_NAME = "gemini-2.5-flash"
-        
 
         st.title("Gemini Chatbot")
 
@@ -134,10 +115,9 @@ class PomodoroApp:
             with st.chat_message(chat["role"]):
                 st.markdown(chat["content"])
 
-        user_msg = st.chat_input("ここにメッセージを入力",key="chat_input_page2")    #keyを持つように修正
+        user_msg = st.chat_input("ここにメッセージを入力", key="chat_input_page2")
 
         if user_msg:
-
             with st.chat_message("user"):
                 st.markdown(user_msg)
             st.session_state.chat_log.append({
@@ -165,70 +145,72 @@ class PomodoroApp:
                     "role": "model",
                     "content": assistant_msg
                 })
-                st.rerun()    #変更点
+                st.rerun()
 
             except Exception as e:
                 st.error(f"エラーが発生しました: {e}")
-        #st.write(self.time)
     
     def render_third_page(self):
         """3ページ目の表示"""
         st.sidebar.title("３ページ目")
-        # タイマーのループに入る前にボタンを描画しておくことで、途中で戻れるように上に移動
-        #st.sidebar.button("1ページ前に戻る", on_click=self.switch_page, args=(1,))
-        if st.sidebar.button("1ページ前に戻る"):    #変更点
+        if st.sidebar.button("2ページ目（チャット）に戻る"):
             self.switch_page(1)
-            st.rerun()
 
         st.markdown("### 集中時間（作業中）")
         st.markdown(f"**現在のセット:** {st.session_state['cnt'] + 1} / {st.session_state['sets']} 回目")
 
-        # タイマー表示用のプレースホルダーを作成
+        # 【超重要】タイマーの無限ループに入る前に、一度だけ強制的に再描画させる
+        # これによりテキストボックスが完全に消滅します
+        if not st.session_state["timer_ready"]:
+            st.session_state["timer_ready"] = True
+            sleep(0.1)  # 画面リセットのためのごくわずかな待機
+            st.rerun()
+
         timer_placeholder = st.empty()
-        # プログレスバーを作成
         progress_bar = st.progress(0)
 
         def work_timer(minutes):
-            # 分を秒に変換してカウントダウン
             total_seconds = minutes * 60
             
             for i in range(total_seconds, -1, -1):
                 if st.session_state["page_control"] != 2:
                     return False
-                # 残りの分と秒を計算
+                
                 mins, secs = divmod(i, 60)
                 time_format = f"{mins:02d}:{secs:02d}"
                 
-                # HTMLを使ってデジタル時計風に大きく表示
                 timer_placeholder.markdown(
                     f"<h1 style='text-align: center; font-size: 80px; color: text;'>{time_format}</h1>", 
                     unsafe_allow_html=True
                 )
                 
-                # プログレスバーの更新
                 if total_seconds > 0:
                     progress_bar.progress(1.0 - (i / total_seconds))
                 
-                # 1秒待機
                 if i > 0:
                     sleep(1)
                     
             return True
 
-        # タイマー完了後、次のページ（4ページ目：休憩）へ自動遷移
+        # タイマー完了後、次のページへ
         if work_timer(st.session_state['worktime']):
             self.switch_page(3)
-            st.rerun()
-
-        # args=(0,) を渡して1ページ目に戻る
-        st.sidebar.button("1ページ前に戻る", on_click=self.switch_page, args=(1,))
 
     def render_fourth_page(self):
         """4ページ目の表示"""
         st.sidebar.title("４ページ目")
-        st.markdown("### ４ページ目（タイマー実行画面など）")
+        st.markdown("### 休憩時間")
         st.markdown(f"**現在のセット:** {st.session_state['cnt'] + 1} / {st.session_state['sets']} 回目")
         
+        if st.sidebar.button("中断して戻る"):
+            self.switch_page(2)
+
+        # 【超重要】ここでもタイマー前に再描画させて画面をリセット
+        if not st.session_state["timer_ready"]:
+            st.session_state["timer_ready"] = True
+            sleep(0.1)
+            st.rerun()
+
         timer_placeholder = st.empty()
         progress_bar = st.progress(0)
 
@@ -256,40 +238,35 @@ class PomodoroApp:
         
         if downtime_timer(st.session_state['downtime']):
             st.session_state['cnt'] = st.session_state['cnt'] + 1
-            #時間経過でページ切り替え
             if st.session_state['cnt'] == st.session_state['sets']:
                 self.switch_page(4)
-                st.rerun()
             else:
                 self.switch_page(2)
-                st.rerun()
     
     def render_fifth_page(self):
         st.sidebar.title("５ページ目")
         st.markdown("### 全てのセット数が完了しました！")
         st.markdown("### お疲れ様でした！")
+        
+        # 終了後に最初に戻れるボタンを追加
+        if st.button("最初に戻る"):
+            st.session_state['cnt'] = 0
+            self.switch_page(0)
 
     def run(self):
         """現在の状態に応じて、表示する画面を振り分ける"""
         with st.container():
             if st.session_state["page_control"] == 0:
                 self.render_main_page()
-                #placeholder.empty()
             elif st.session_state["page_control"] == 1:
                 self.render_second_page()
-                #placeholder.empty()
             elif st.session_state["page_control"] == 2:
                 self.render_third_page()
-                #placeholder.empty()
             elif st.session_state["page_control"] == 3:
                 self.render_fourth_page()
-                #placeholder.empty()
             elif st.session_state["page_control"] == 4:
                 self.render_fifth_page()
-                #placeholder.empty()
 
-# スクリプトが直接実行された場合のみ、以下の処理を動かす
 if __name__ == "__main__":
-    # クラスから実体（インスタンス）を作成して起動
     app = PomodoroApp()
     app.run()
