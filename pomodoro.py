@@ -4,7 +4,7 @@ import os
 from google import genai
 from dotenv import load_dotenv
 
-placeholder = st.empty()
+#placeholder = st.empty()
 
 class PomodoroApp:
     """アプリの画面表示と状態遷移を管理するクラス"""
@@ -178,6 +178,8 @@ class PomodoroApp:
             total_seconds = minutes * 60
             
             for i in range(total_seconds, -1, -1):
+                if st.session_state["page_control"] != 2:
+                    return False
                 # 残りの分と秒を計算
                 mins, secs = divmod(i, 60)
                 time_format = f"{mins:02d}:{secs:02d}"
@@ -219,6 +221,8 @@ class PomodoroApp:
             total_seconds = minutes * 60
 
             for i in range(total_seconds, -1, -1):
+                if st.session_state["page_control"] != 3:
+                    return False
                 mins, secs = divmod(i, 60)
                 time_format = f"{mins:02d}:{secs:02d}"
 
@@ -254,19 +258,19 @@ class PomodoroApp:
         """現在の状態に応じて、表示する画面を振り分ける"""
         if st.session_state["page_control"] == 0:
             self.render_main_page()
-            placeholder.empty()
+            #placeholder.empty()
         elif st.session_state["page_control"] == 1:
             self.render_second_page()
-            placeholder.empty()
+            #placeholder.empty()
         elif st.session_state["page_control"] == 2:
             self.render_third_page()
-            placeholder.empty()
+            #placeholder.empty()
         elif st.session_state["page_control"] == 3:
             self.render_fourth_page()
-            placeholder.empty()
+            #placeholder.empty()
         elif st.session_state["page_control"] == 4:
             self.render_fifth_page()
-            placeholder.empty()
+            #placeholder.empty()
 
 # スクリプトが直接実行された場合のみ、以下の処理を動かす
 if __name__ == "__main__":
