@@ -58,7 +58,10 @@ class PomodoroApp:
         )
 
         st.sidebar.title("１ページ目")
-        st.sidebar.button("2ページ目へ", on_click=self.switch_page, args=(1,))
+        #st.sidebar.button("2ページ目へ", on_click=self.switch_page, args=(1,))
+        if st.sidebar.button("2ページ目"):   #修正点
+            self.switch_page(1)
+            st.rerun()
         
         # ----------------------------------------------------
         # 【変更】st.form を使って入力項目をグループ化
@@ -95,10 +98,16 @@ class PomodoroApp:
         st.sidebar.title("２ページ目")
         st.markdown("### ２ページ目（タイマー実行画面など）")
         
-        st.sidebar.button("3ページ目へ", on_click=self.switch_page, args=(2,))
+        #st.sidebar.button("3ページ目へ", on_click=self.switch_page, args=(2,))
+        if st.sidebar.button("3ページ目"):    #修正点
+            self.switch_page(2)
+            st.rerun()
 
         # args=(0,) を渡して1ページ目に戻る
-        st.sidebar.button("1ページ前に戻る", on_click=self.switch_page, args=(0,))
+        #st.sidebar.button("1ページ前に戻る", on_click=self.switch_page, args=(0,))
+        if st.sidebar.button("1ページ前に戻る"):    #変更点
+            self.switch_page(0)
+            st.rerun()
 
         #st.write(self.time)
         load_dotenv()
@@ -154,6 +163,7 @@ class PomodoroApp:
                     "role": "model",
                     "content": assistant_msg
                 })
+                st.rerun()    #変更点
 
             except Exception as e:
                 st.error(f"エラーが発生しました: {e}")
@@ -163,7 +173,10 @@ class PomodoroApp:
         """3ページ目の表示"""
         st.sidebar.title("３ページ目")
         # タイマーのループに入る前にボタンを描画しておくことで、途中で戻れるように上に移動
-        st.sidebar.button("1ページ前に戻る", on_click=self.switch_page, args=(1,))
+        #st.sidebar.button("1ページ前に戻る", on_click=self.switch_page, args=(1,))
+        if st.sidebar.button("1ページ前に戻る"):    #変更点
+            self.switch_page(1)
+            st.rerun()
 
         st.markdown("### 集中時間（作業中）")
         st.markdown(f"**現在のセット:** {st.session_state['cnt'] + 1} / {st.session_state['sets']} 回目")
@@ -213,7 +226,7 @@ class PomodoroApp:
         st.sidebar.title("４ページ目")
         st.markdown("### ４ページ目（タイマー実行画面など）")
         st.markdown(f"**現在のセット:** {st.session_state['cnt'] + 1} / {st.session_state['sets']} 回目")
-
+        
         timer_placeholder = st.empty()
         progress_bar = st.progress(0)
 
@@ -256,21 +269,22 @@ class PomodoroApp:
 
     def run(self):
         """現在の状態に応じて、表示する画面を振り分ける"""
-        if st.session_state["page_control"] == 0:
-            self.render_main_page()
-            #placeholder.empty()
-        elif st.session_state["page_control"] == 1:
-            self.render_second_page()
-            #placeholder.empty()
-        elif st.session_state["page_control"] == 2:
-            self.render_third_page()
-            #placeholder.empty()
-        elif st.session_state["page_control"] == 3:
-            self.render_fourth_page()
-            #placeholder.empty()
-        elif st.session_state["page_control"] == 4:
-            self.render_fifth_page()
-            #placeholder.empty()
+        with st.container():
+            if st.session_state["page_control"] == 0:
+                self.render_main_page()
+                #placeholder.empty()
+            elif st.session_state["page_control"] == 1:
+                self.render_second_page()
+                #placeholder.empty()
+            elif st.session_state["page_control"] == 2:
+                self.render_third_page()
+                #placeholder.empty()
+            elif st.session_state["page_control"] == 3:
+                self.render_fourth_page()
+                #placeholder.empty()
+            elif st.session_state["page_control"] == 4:
+                self.render_fifth_page()
+                #placeholder.empty()
 
 # スクリプトが直接実行された場合のみ、以下の処理を動かす
 if __name__ == "__main__":
