@@ -102,12 +102,14 @@ class PomodoroApp:
         if st.sidebar.button("3ページ目"):    #修正点
             self.switch_page(2)
             st.rerun()
+            return
 
         # args=(0,) を渡して1ページ目に戻る
         #st.sidebar.button("1ページ前に戻る", on_click=self.switch_page, args=(0,))
         if st.sidebar.button("1ページ前に戻る"):    #変更点
             self.switch_page(0)
             st.rerun()
+            return
 
         #st.write(self.time)
         load_dotenv()
@@ -132,7 +134,7 @@ class PomodoroApp:
             with st.chat_message(chat["role"]):
                 st.markdown(chat["content"])
 
-        user_msg = st.chat_input("ここにメッセージを入力")
+        user_msg = st.chat_input("ここにメッセージを入力",key="chat_input_page2")    #keyを持つように修正
 
         if user_msg:
 
