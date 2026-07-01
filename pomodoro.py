@@ -102,7 +102,8 @@ class PomodoroApp:
 
         #st.write(self.time)
         load_dotenv()
-        API_KEY = os.getenv("GOOGLE_API_KEY")
+        API_KEY = st.secrets["GOOGLE_API_KEY"]
+        genai.configure(api_key=API_KEY)
         if not API_KEY:
             st.error(
                 "Google APIキーが設定されていません。"
