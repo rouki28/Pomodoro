@@ -86,41 +86,101 @@ class PomodoroApp:
         if st.sidebar.button("1ページ前に戻る"):
             self.switch_page(0)
 
+               #st.write(self.time)
         load_dotenv()
-        API_KEY = st.secrets.get("GOOGLE_API_KEY", os.getenv("GOOGLE_API_KEY"))
+        API_KEY = os.getenv("GOOGLE_API_KEY")
         if not API_KEY:
-            st.error("Google APIキーが設定されていません。")
+            st.error(
+                "Google APIキーが設定されていません。"
+                "環境変数 GOOGLE_API_KEY を設定してください。"
+            )
             st.stop()
-            
         client = genai.Client(api_key=API_KEY)
         MODEL_NAME = "gemini-2.5-flash"
         
-        st.title("Gemini Chatbot")
 
+        st.title("Gemini Chatbot")
+        
         if "chat_log" not in st.session_state:
             st.session_state.chat_log = []
+
+        if"message" not in st.session_state:
+            st.session_state.messages = []
+        if "last_uploaded_file_id" not in st.session_state:
+            st.session_state.last_uploaded_file_id = None 
+
+        with st.sidebar:
+            st.header("ログの管理")
+            uploaded_file = st.file_uploader("過去のログ(JSON)を読み込む", type=["json"])
+            if uploaded_file is not None and uploaded_file.file_id != st.session_state.last_uploaded_file_id:
+                try:
+                    loaded_messages = json.load(uploaded_file)
+                    st.session_state.chat_log = loaded_messages
+                    st.success("ログを読み込みました")
+                    st.session_state.last_uploaded_file_id = uploaded_file.file_id
+                    st.rerun()
+                except json.JSONDecodeError:
+                    st.error("JSONの読み込みに失敗しました。正しい形式のファイルを選択してください。")
+        
+            json_data = json.dumps(st.session_state.chat_log,ensure_ascii=False, indent=2)
+    
+            st.download_button(
+                label="チャットログをダウンロード",
+                data=json_data,
+                file_name="chat_log.json",
+                mime="application/json",
+                )
+
+
+
+
+        #for msg in st.session_state.messages:
+        #    with st.chat_message(msg["role"]):
+        #        st.markdown(msg["content"])
+
+
+
+
+        
 
         for chat in st.session_state.chat_log:
             with st.chat_message(chat["role"]):
                 st.markdown(chat["content"])
 
-        # キーを設定して確実に区別させる
-        user_msg = st.chat_input("ここにメッセージを入力", key="chat_input_page2")
+        user_msg = st.chat_input("ここにメッセージを入力")
 
         if user_msg:
+
             with st.chat_message("user"):
                 st.markdown(user_msg)
-            st.session_state.chat_log.append({"role": "user", "content": user_msg})
+            st.session_state.chat_log.append({
+                "role": "user",
+                "content": user_msg
+            })
+
+        
+
             try:
-                contents = [{"role": msg["role"], "parts": [{"text": msg["content"]}]} for msg in st.session_state.chat_log]
-                response = client.models.generate_content(model=MODEL_NAME, contents=contents)
+                contents = []
+                for msg in st.session_state.chat_log:
+                    contents.append({
+                        "role": msg["role"],
+                        "parts": [{"text": msg["content"]}]
+                    })
+
+                response = client.models.generate_content(
+                    model=MODEL_NAME,
+                    contents=contents
+                )
                 assistant_msg = response.text
 
                 with st.chat_message("model"):
                     st.markdown(assistant_msg)
 
-                st.session_state.chat_log.append({"role": "model", "content": assistant_msg})
-                st.rerun()
+                st.session_state.chat_log.append({
+                    "role": "model",
+                    "content": assistant_msg
+                })
 
             except Exception as e:
                 st.error(f"エラーが発生しました: {e}")
