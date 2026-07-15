@@ -188,7 +188,7 @@ class PomodoroApp:
             self.switch_page(1)
 
         st.markdown("### 集中時間（作業中）")
-        st.markdown(f"　目標　{st.session_state["goal"]}")
+        st.markdown(f"**目標:** {st.session_state["goal"]}")
         st.markdown(f"**現在のセット:** {st.session_state['cnt'] + 1} / {st.session_state['sets']} 回目")
 
         timer_placeholder = st.empty()
