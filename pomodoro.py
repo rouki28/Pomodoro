@@ -3,6 +3,7 @@ from time import sleep
 import os
 from google import genai
 from dotenv import load_dotenv
+import json
 
 class PomodoroApp:
     """アプリの画面表示と状態遷移を管理するクラス"""
