@@ -68,14 +68,16 @@ class PomodoroApp:
     def render_main_page(self):
         # １ページ目 (page_control == 0)
         st.sidebar.title("１ページ目")
-        if st.sidebar.button("2ページ目へ"):
+        if st.sidebar.button("2ページ目へ", key="btn_to_page2"):
             self.switch_page(1)
 
         # --- BGM設定（サイドバー） ---
         st.sidebar.markdown("---")
         st.sidebar.subheader("🎵 BGM設定")
         uploaded_file = st.sidebar.file_uploader(
-            "作業中に流す音楽ファイルを選択", type=["mp3", "wav", "ogg"]
+            "作業中に流す音楽ファイルを選択",
+            type=["mp3", "wav", "ogg"],
+            key="bgm_file_uploader",
         )
 
         if uploaded_file is not None:
@@ -92,7 +94,7 @@ class PomodoroApp:
                 if st.session_state["bgm_playing"]
                 else "▶️ BGM再生"
             )
-            if st.sidebar.button(btn_label, use_container_width=True):
+            if st.sidebar.button(btn_label, use_container_width=True, key="btn_bgm_toggle"):
                 st.session_state["bgm_playing"] = not st.session_state[
                     "bgm_playing"
                 ]
@@ -141,7 +143,7 @@ class PomodoroApp:
         st.sidebar.title("２ページ目")
 
         if st.sidebar.button(
-            "3ページ目へ（タイマースタート）", type="primary"
+            "3ページ目へ（タイマースタート）", type="primary", key="btn_to_page3"
         ):
             for i in range(st.session_state["sets"]):
                 goal_text = st.session_state.get(f"user_goal{i}", "")
@@ -156,7 +158,7 @@ class PomodoroApp:
             )
             self.switch_page(2)
 
-        if st.sidebar.button("1ページ前に戻る"):
+        if st.sidebar.button("1ページ前に戻る", key="btn_p2_back"):
             self.switch_page(0)
 
         st.sidebar.markdown("---")
@@ -174,7 +176,9 @@ class PomodoroApp:
         if client:
             st.sidebar.header("ログの管理")
             uploaded_file = st.sidebar.file_uploader(
-                "過去のログ(JSON)を読み込む", type=["json"]
+                "過去のログ(JSON)を読み込む",
+                type=["json"],
+                key="chat_log_uploader",
             )
             if (
                 uploaded_file is not None
@@ -201,6 +205,7 @@ class PomodoroApp:
                 ),
                 file_name="chat_log.json",
                 mime="application/json",
+                key="chat_log_download",
             )
 
         # --- メイン画面レイアウト ---
@@ -221,7 +226,7 @@ class PomodoroApp:
                     with st.chat_message(chat["role"]):
                         st.markdown(chat["content"])
 
-                user_msg = st.chat_input("ここにメッセージを入力")
+                user_msg = st.chat_input("ここにメッセージを入力", key="chat_input")
 
                 if user_msg:
                     with st.chat_message("user"):
@@ -284,7 +289,7 @@ class PomodoroApp:
     def render_third_page(self):
         # ３ページ目 (page_control == 2)
         st.sidebar.title("３ページ目")
-        if st.sidebar.button("1ページ前に戻る"):
+        if st.sidebar.button("1ページ前に戻る", key="btn_p3_back"):
             st.session_state.timer_running = False
             self.switch_page(1)
 
@@ -321,7 +326,7 @@ class PomodoroApp:
                     unsafe_allow_html=True,
                 )
 
-                if st.button("▶ タイマーをスタート", use_container_width=True):
+                if st.button("▶ タイマーをスタート", use_container_width=True, key="btn_work_start"):
                     st.session_state.timer_running = True
                     st.session_state.target_time = (
                         time.time() + st.session_state.remaining
@@ -332,7 +337,7 @@ class PomodoroApp:
             else:
                 st_autorefresh(interval=1000, key="work_timer_autorefresh")
 
-                if st.button("一時停止", use_container_width=True):
+                if st.button("一時停止", use_container_width=True, key="btn_work_pause"):
                     st.session_state.timer_running = False
                     st.rerun()
 
@@ -361,7 +366,7 @@ class PomodoroApp:
         # ４ページ目 (page_control == 3)
         st.sidebar.title("４ページ目")
 
-        if st.sidebar.button("中断して戻る"):
+        if st.sidebar.button("中断して戻る", key="btn_p4_back"):
             st.session_state.timer_running_break = False
             self.switch_page(1)
 
@@ -387,7 +392,7 @@ class PomodoroApp:
                     unsafe_allow_html=True,
                 )
 
-                if st.button("▶ 休憩をスタート", use_container_width=True):
+                if st.button("▶ 休憩をスタート", use_container_width=True, key="btn_break_start"):
                     st.session_state.timer_running_break = True
                     st.session_state.target_time_break = (
                         time.time() + st.session_state.remaining_break
@@ -398,7 +403,7 @@ class PomodoroApp:
             else:
                 st_autorefresh(interval=1000, key="break_timer_autorefresh")
 
-                if st.button("一時停止", use_container_width=True):
+                if st.button("一時停止", use_container_width=True, key="btn_break_pause"):
                     st.session_state.timer_running_break = False
                     st.rerun()
 
@@ -434,7 +439,7 @@ class PomodoroApp:
         st.markdown("### 全てのセット数が完了しました！")
         st.markdown("### お疲れ様でした！")
 
-        if st.button("最初に戻る"):
+        if st.button("最初に戻る", key="btn_reset_all"):
             st.session_state["cnt"] = 0
             self.switch_page(0)
 
@@ -474,7 +479,8 @@ class PomodoroApp:
         current_page = st.session_state["page_control"]
         main_container = st.empty()
 
-        with main_container.container(key=f"page_container_{current_page}"):
+        # 重複エラー回避のため key パラメータを指定せずに描写コンテナを定義
+        with main_container.container():
             if current_page == 0:
                 self.render_main_page()
             elif current_page == 1:
@@ -485,11 +491,6 @@ class PomodoroApp:
                 self.render_fourth_page()
             elif current_page == 4:
                 self.render_fifth_page()
-
-
-if __name__ == "__main__":
-    app = PomodoroApp()
-    app.run()
 
 
 if __name__ == "__main__":
