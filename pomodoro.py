@@ -1,3 +1,4 @@
+import base64
 import json
 import os
 import time
@@ -52,6 +53,14 @@ class PomodoroApp:
         if "target_time_break" not in st.session_state:
             st.session_state["target_time_break"] = 0
 
+        # BGM機能用セッション状態
+        if "bgm_file" not in st.session_state:
+            st.session_state["bgm_file"] = None
+        if "bgm_type" not in st.session_state:
+            st.session_state["bgm_type"] = None
+        if "bgm_playing" not in st.session_state:
+            st.session_state["bgm_playing"] = False
+
     def switch_page(self, page_id):
         st.session_state["page_control"] = page_id
         st.rerun()
@@ -62,6 +71,33 @@ class PomodoroApp:
         if st.sidebar.button("2ページ目へ"):
             self.switch_page(1)
 
+        # --- BGM設定（サイドバー） ---
+        st.sidebar.markdown("---")
+        st.sidebar.subheader("🎵 BGM設定")
+        uploaded_file = st.sidebar.file_uploader(
+            "作業中に流す音楽ファイルを選択", type=["mp3", "wav", "ogg"]
+        )
+
+        if uploaded_file is not None:
+            st.session_state["bgm_file"] = uploaded_file.read()
+            st.session_state["bgm_type"] = uploaded_file.type
+            st.sidebar.success(f"BGM（{uploaded_file.name}）をセットしました")
+        else:
+            st.session_state["bgm_file"] = None
+            st.session_state["bgm_playing"] = False
+
+        if st.session_state.get("bgm_file"):
+            btn_label = (
+                "⏹️ BGM停止"
+                if st.session_state["bgm_playing"]
+                else "▶️ BGM再生"
+            )
+            if st.sidebar.button(btn_label, use_container_width=True):
+                st.session_state["bgm_playing"] = not st.session_state[
+                    "bgm_playing"
+                ]
+                st.rerun()
+
         st.title("Pomodoro Timer")
 
         with st.form("setting_form"):
@@ -70,10 +106,14 @@ class PomodoroApp:
                 "今回の目標", value=st.session_state["goal"]
             )
             worktime_input = st.number_input(
-                "作業時間 (分)", min_value=1, value=st.session_state["worktime"]
+                "作業時間 (分)",
+                min_value=1,
+                value=st.session_state["worktime"],
             )
             downtime_input = st.number_input(
-                "休憩時間 (分)", min_value=1, value=st.session_state["downtime"]
+                "休憩時間 (分)",
+                min_value=1,
+                value=st.session_state["downtime"],
             )
             sets_input = st.number_input(
                 "セット数", min_value=1, value=st.session_state["sets"]
@@ -417,6 +457,20 @@ class PomodoroApp:
             unsafe_allow_html=True,
         )
 
+        # BGM再生処理（有効な場合にバックグラウンドでループ再生）
+        if (
+            st.session_state.get("bgm_playing")
+            and st.session_state.get("bgm_file")
+        ):
+            b64_audio = base64.b64encode(st.session_state["bgm_file"]).decode()
+            bgm_type = st.session_state["bgm_type"]
+            audio_html = f"""
+                <audio autoplay loop style="display:none;">
+                    <source src="data:{bgm_type};base64,{b64_audio}" type="{bgm_type}">
+                </audio>
+            """
+            st.markdown(audio_html, unsafe_allow_html=True)
+
         current_page = st.session_state["page_control"]
         main_container = st.empty()
 
@@ -431,6 +485,11 @@ class PomodoroApp:
                 self.render_fourth_page()
             elif current_page == 4:
                 self.render_fifth_page()
+
+
+if __name__ == "__main__":
+    app = PomodoroApp()
+    app.run()
 
 
 if __name__ == "__main__":
