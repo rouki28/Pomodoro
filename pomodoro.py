@@ -1,4 +1,3 @@
-import base64
 import json
 import os
 import time
@@ -53,13 +52,13 @@ class PomodoroApp:
         if "target_time_break" not in st.session_state:
             st.session_state["target_time_break"] = 0
 
-        # BGM機能用セッション状態（パフォーマンス改善のためのキャッシュを追加）
-        if "bgm_file_name" not in st.session_state:
-            st.session_state["bgm_file_name"] = None
-        if "bgm_b64" not in st.session_state:
-            st.session_state["bgm_b64"] = None
+        # BGM機能用セッション状態
+        if "bgm_file" not in st.session_state:
+            st.session_state["bgm_file"] = None
         if "bgm_type" not in st.session_state:
             st.session_state["bgm_type"] = None
+        if "bgm_name" not in st.session_state:
+            st.session_state["bgm_name"] = None
 
     def switch_page(self, page_id):
         st.session_state["page_control"] = page_id
@@ -69,38 +68,43 @@ class PomodoroApp:
         """全ページ共通で表示するBGM設定サイドバー"""
         st.sidebar.markdown("---")
         st.sidebar.subheader("🎵 BGM設定")
+        
         uploaded_file = st.sidebar.file_uploader(
-            "作業中に流す音楽ファイルを選択",
+            "音楽ファイルを選択 (変更時のみ)",
             type=["mp3", "wav", "ogg"],
             key="bgm_file_uploader",
         )
 
         if uploaded_file is not None:
-            # ▼ パフォーマンス改善ポイント：
-            # 新しいファイルがアップロードされた時だけ、重いBase64エンコード処理を1回だけ行う
-            if st.session_state.get("bgm_file_name") != uploaded_file.name:
-                st.session_state["bgm_file_name"] = uploaded_file.name
-                st.session_state["bgm_type"] = uploaded_file.type
-                
-                file_bytes = uploaded_file.getvalue()
-                st.session_state["bgm_b64"] = base64.b64encode(file_bytes).decode()
-                st.sidebar.success(f"BGM（{uploaded_file.name}）をセットしました")
+            # データをセッションに保存
+            st.session_state["bgm_file"] = uploaded_file.getvalue()
+            st.session_state["bgm_type"] = uploaded_file.type
+            st.session_state["bgm_name"] = uploaded_file.name
+
+        # BGMが設定されている場合は標準プレイヤーを表示
+        if st.session_state.get("bgm_file") is not None:
+            st.sidebar.markdown(f"**セット中:** {st.session_state['bgm_name']}")
             
-            # キャッシュされたBase64データを使ってプレイヤーを表示
-            bgm_type = st.session_state["bgm_type"]
-            b64_audio = st.session_state["bgm_b64"]
+            try:
+                # Streamlitのバージョンが新しい場合はループ再生に対応
+                st.sidebar.audio(
+                    st.session_state["bgm_file"], 
+                    format=st.session_state["bgm_type"], 
+                    loop=True
+                )
+            except TypeError:
+                # バージョンが古い場合は通常の再生
+                st.sidebar.audio(
+                    st.session_state["bgm_file"], 
+                    format=st.session_state["bgm_type"]
+                )
             
-            audio_html = f"""
-                <audio controls loop style="width: 100%;">
-                    <source src="data:{bgm_type};base64,{b64_audio}" type="{bgm_type}">
-                    お使いのブラウザは音声再生をサポートしていません。
-                </audio>
-            """
-            st.sidebar.markdown(audio_html, unsafe_allow_html=True)
-        else:
-            # ファイルがクリアされたら状態もリセット
-            st.session_state["bgm_file_name"] = None
-            st.session_state["bgm_b64"] = None
+            # リセットボタン
+            if st.sidebar.button("BGMを解除", key="btn_clear_bgm"):
+                st.session_state["bgm_file"] = None
+                st.session_state["bgm_type"] = None
+                st.session_state["bgm_name"] = None
+                st.rerun()
 
     def render_main_page(self):
         # １ページ目 (page_control == 0)
@@ -493,3 +497,4 @@ class PomodoroApp:
 if __name__ == "__main__":
     app = PomodoroApp()
     app.run()
+
