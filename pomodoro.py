@@ -65,13 +65,8 @@ class PomodoroApp:
         st.session_state["page_control"] = page_id
         st.rerun()
 
-    def render_main_page(self):
-        # １ページ目 (page_control == 0)
-        st.sidebar.title("１ページ目")
-        if st.sidebar.button("2ページ目へ", key="btn_to_page2"):
-            self.switch_page(1)
-
-        # --- BGM設定（サイドバー） ---
+    def render_bgm_sidebar(self):
+        """全ページ共通で表示するBGM設定サイドバー"""
         st.sidebar.markdown("---")
         st.sidebar.subheader("🎵 BGM設定")
         uploaded_file = st.sidebar.file_uploader(
@@ -81,7 +76,8 @@ class PomodoroApp:
         )
 
         if uploaded_file is not None:
-            st.session_state["bgm_file"] = uploaded_file.read()
+            # .read() だと再描画時に空になるため .getvalue() を使用します
+            st.session_state["bgm_file"] = uploaded_file.getvalue()
             st.session_state["bgm_type"] = uploaded_file.type
             st.sidebar.success(f"BGM（{uploaded_file.name}）をセットしました")
         else:
@@ -95,10 +91,14 @@ class PomodoroApp:
                 else "▶️ BGM再生"
             )
             if st.sidebar.button(btn_label, use_container_width=True, key="btn_bgm_toggle"):
-                st.session_state["bgm_playing"] = not st.session_state[
-                    "bgm_playing"
-                ]
+                st.session_state["bgm_playing"] = not st.session_state["bgm_playing"]
                 st.rerun()
+
+    def render_main_page(self):
+        # １ページ目 (page_control == 0)
+        st.sidebar.title("１ページ目")
+        if st.sidebar.button("2ページ目へ", key="btn_to_page2"):
+            self.switch_page(1)
 
         st.title("Pomodoro Timer")
 
@@ -491,6 +491,9 @@ class PomodoroApp:
                 self.render_fourth_page()
             elif current_page == 4:
                 self.render_fifth_page()
+                
+        # 全ページのサイドバー下部にBGM設定を配置する
+        self.render_bgm_sidebar()
 
 
 if __name__ == "__main__":
