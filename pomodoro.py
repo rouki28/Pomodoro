@@ -58,8 +58,6 @@ class PomodoroApp:
             st.session_state["bgm_file"] = None
         if "bgm_type" not in st.session_state:
             st.session_state["bgm_type"] = None
-        if "bgm_playing" not in st.session_state:
-            st.session_state["bgm_playing"] = False
 
     def switch_page(self, page_id):
         st.session_state["page_control"] = page_id
@@ -76,23 +74,22 @@ class PomodoroApp:
         )
 
         if uploaded_file is not None:
-            # .read() だと再描画時に空になるため .getvalue() を使用します
             st.session_state["bgm_file"] = uploaded_file.getvalue()
             st.session_state["bgm_type"] = uploaded_file.type
             st.sidebar.success(f"BGM（{uploaded_file.name}）をセットしました")
+            
+            # 再生・一時停止・音量調節ができるHTML5標準プレイヤーを表示
+            b64_audio = base64.b64encode(st.session_state["bgm_file"]).decode()
+            bgm_type = st.session_state["bgm_type"]
+            audio_html = f"""
+                <audio controls loop style="width: 100%;">
+                    <source src="data:{bgm_type};base64,{b64_audio}" type="{bgm_type}">
+                    お使いのブラウザは音声再生をサポートしていません。
+                </audio>
+            """
+            st.sidebar.markdown(audio_html, unsafe_allow_html=True)
         else:
             st.session_state["bgm_file"] = None
-            st.session_state["bgm_playing"] = False
-
-        if st.session_state.get("bgm_file"):
-            btn_label = (
-                "⏹️ BGM停止"
-                if st.session_state["bgm_playing"]
-                else "▶️ BGM再生"
-            )
-            if st.sidebar.button(btn_label, use_container_width=True, key="btn_bgm_toggle"):
-                st.session_state["bgm_playing"] = not st.session_state["bgm_playing"]
-                st.rerun()
 
     def render_main_page(self):
         # １ページ目 (page_control == 0)
@@ -104,21 +101,25 @@ class PomodoroApp:
 
         with st.form("setting_form"):
             st.header("タイマー設定")
+            
+            # すべての入力ウィジェットに一意のキー（key="..."）を付与して重複を防止
             goal_input = st.text_input(
-                "今回の目標", value=st.session_state["goal"]
+                "今回の目標", value=st.session_state["goal"], key="main_goal"
             )
             worktime_input = st.number_input(
                 "作業時間 (分)",
                 min_value=1,
                 value=st.session_state["worktime"],
+                key="main_worktime"
             )
             downtime_input = st.number_input(
                 "休憩時間 (分)",
                 min_value=1,
                 value=st.session_state["downtime"],
+                key="main_downtime"
             )
             sets_input = st.number_input(
-                "セット数", min_value=1, value=st.session_state["sets"]
+                "セット数", min_value=1, value=st.session_state["sets"], key="main_sets"
             )
 
             submitted = st.form_submit_button("設定を決定")
@@ -146,7 +147,7 @@ class PomodoroApp:
             "3ページ目へ（タイマースタート）", type="primary", key="btn_to_page3"
         ):
             for i in range(st.session_state["sets"]):
-                goal_text = st.session_state.get(f"user_goal{i}", "")
+                goal_text = st.session_state.get(f"user_goal_{i}", "")
                 st.session_state[f"saved_goal{i}"] = (
                     goal_text if goal_text != "" else "未入力"
                 )
@@ -276,14 +277,14 @@ class PomodoroApp:
             n = int(value) if str(value).isdigit() else 3
             with st.form("setting_form_page2"):
                 for i in range(n):
-                    st.text_input(f"{i+1}回目の目標:", key=f"user_goal{i}")
+                    st.text_input(f"{i+1}回目の目標:", key=f"user_goal_{i}")
 
                 sub = st.form_submit_button("設定を決定")
 
                 if sub:
                     for j in range(n):
                         st.write(
-                            f"{j+1}回目の目標: {st.session_state.get(f'user_goal{j}', '未入力')}"
+                            f"{j+1}回目の目標: {st.session_state.get(f'user_goal_{j}', '未入力')}"
                         )
 
     def render_third_page(self):
@@ -462,35 +463,19 @@ class PomodoroApp:
             unsafe_allow_html=True,
         )
 
-        # BGM再生処理（有効な場合にバックグラウンドでループ再生）
-        if (
-            st.session_state.get("bgm_playing")
-            and st.session_state.get("bgm_file")
-        ):
-            b64_audio = base64.b64encode(st.session_state["bgm_file"]).decode()
-            bgm_type = st.session_state["bgm_type"]
-            audio_html = f"""
-                <audio autoplay loop style="display:none;">
-                    <source src="data:{bgm_type};base64,{b64_audio}" type="{bgm_type}">
-                </audio>
-            """
-            st.markdown(audio_html, unsafe_allow_html=True)
-
         current_page = st.session_state["page_control"]
-        main_container = st.empty()
-
-        # 重複エラー回避のため key パラメータを指定せずに描写コンテナを定義
-        with main_container.container():
-            if current_page == 0:
-                self.render_main_page()
-            elif current_page == 1:
-                self.render_second_page()
-            elif current_page == 2:
-                self.render_third_page()
-            elif current_page == 3:
-                self.render_fourth_page()
-            elif current_page == 4:
-                self.render_fifth_page()
+        
+        # ページ描画をシンプルにし、キャッシュ起因の重複エラーを予防
+        if current_page == 0:
+            self.render_main_page()
+        elif current_page == 1:
+            self.render_second_page()
+        elif current_page == 2:
+            self.render_third_page()
+        elif current_page == 3:
+            self.render_fourth_page()
+        elif current_page == 4:
+            self.render_fifth_page()
                 
         # 全ページのサイドバー下部にBGM設定を配置する
         self.render_bgm_sidebar()
