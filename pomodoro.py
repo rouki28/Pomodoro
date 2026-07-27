@@ -53,9 +53,11 @@ class PomodoroApp:
         if "target_time_break" not in st.session_state:
             st.session_state["target_time_break"] = 0
 
-        # BGM機能用セッション状態
-        if "bgm_file" not in st.session_state:
-            st.session_state["bgm_file"] = None
+        # BGM機能用セッション状態（パフォーマンス改善のためのキャッシュを追加）
+        if "bgm_file_name" not in st.session_state:
+            st.session_state["bgm_file_name"] = None
+        if "bgm_b64" not in st.session_state:
+            st.session_state["bgm_b64"] = None
         if "bgm_type" not in st.session_state:
             st.session_state["bgm_type"] = None
 
@@ -74,13 +76,20 @@ class PomodoroApp:
         )
 
         if uploaded_file is not None:
-            st.session_state["bgm_file"] = uploaded_file.getvalue()
-            st.session_state["bgm_type"] = uploaded_file.type
-            st.sidebar.success(f"BGM（{uploaded_file.name}）をセットしました")
+            # ▼ パフォーマンス改善ポイント：
+            # 新しいファイルがアップロードされた時だけ、重いBase64エンコード処理を1回だけ行う
+            if st.session_state.get("bgm_file_name") != uploaded_file.name:
+                st.session_state["bgm_file_name"] = uploaded_file.name
+                st.session_state["bgm_type"] = uploaded_file.type
+                
+                file_bytes = uploaded_file.getvalue()
+                st.session_state["bgm_b64"] = base64.b64encode(file_bytes).decode()
+                st.sidebar.success(f"BGM（{uploaded_file.name}）をセットしました")
             
-            # 再生・一時停止・音量調節ができるHTML5標準プレイヤーを表示
-            b64_audio = base64.b64encode(st.session_state["bgm_file"]).decode()
+            # キャッシュされたBase64データを使ってプレイヤーを表示
             bgm_type = st.session_state["bgm_type"]
+            b64_audio = st.session_state["bgm_b64"]
+            
             audio_html = f"""
                 <audio controls loop style="width: 100%;">
                     <source src="data:{bgm_type};base64,{b64_audio}" type="{bgm_type}">
@@ -89,7 +98,9 @@ class PomodoroApp:
             """
             st.sidebar.markdown(audio_html, unsafe_allow_html=True)
         else:
-            st.session_state["bgm_file"] = None
+            # ファイルがクリアされたら状態もリセット
+            st.session_state["bgm_file_name"] = None
+            st.session_state["bgm_b64"] = None
 
     def render_main_page(self):
         # １ページ目 (page_control == 0)
@@ -102,7 +113,6 @@ class PomodoroApp:
         with st.form("setting_form"):
             st.header("タイマー設定")
             
-            # すべての入力ウィジェットに一意のキー（key="..."）を付与して重複を防止
             goal_input = st.text_input(
                 "今回の目標", value=st.session_state["goal"], key="main_goal"
             )
@@ -465,7 +475,6 @@ class PomodoroApp:
 
         current_page = st.session_state["page_control"]
         
-        # ページ描画をシンプルにし、キャッシュ起因の重複エラーを予防
         if current_page == 0:
             self.render_main_page()
         elif current_page == 1:
@@ -480,10 +489,6 @@ class PomodoroApp:
         # 全ページのサイドバー下部にBGM設定を配置する
         self.render_bgm_sidebar()
 
-
-if __name__ == "__main__":
-    app = PomodoroApp()
-    app.run()
 
 if __name__ == "__main__":
     app = PomodoroApp()
